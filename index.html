@@ -269,7 +269,12 @@ var DS = [
 
 function G(id){ return document.getElementById(id); }
 function esc(s){ return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
-function dk(d){ return d.toISOString().slice(0,10); }
+function dk(d){
+  var y=d.getFullYear();
+  var m=String(d.getMonth()+1).padStart(2,'0');
+  var day=String(d.getDate()).padStart(2,'0');
+  return y+'-'+m+'-'+day;
+}
 function isAdmin(){ return myProfile&&(myProfile.role==='admin'||myProfile.role==='manager'); }
 function addD(d,n){ var x=new Date(d); x.setDate(x.getDate()+n); return x; }
 function monOf(d){ var x=new Date(d); var day=x.getDay(); x.setDate(x.getDate()-(day===0?6:day-1)); x.setHours(0,0,0,0); return x; }
@@ -377,7 +382,8 @@ function navToday(){ curDate=new Date(NOW.getFullYear(),NOW.getMonth(),1); close
 function evForDay(empId,ds){
   for(var i=0;i<allEvents.length;i++){
     var e=allEvents[i];
-    if(e.employee_id===empId&&e.date===ds&&e.status!=='rejected') return e;
+    var edate=(e.date||'').slice(0,10);
+    if(e.employee_id===empId&&edate===ds&&e.status!=='rejected') return e;
   }
   return null;
 }
@@ -513,6 +519,8 @@ async function applyWeek(){
   toast(count+' jour(s) assigne(s)');
   G('wa-msg').textContent=count+' jours enregistres.';
   await loadAll(); renderCal(); refreshBadge();
+  // Force second render after short delay to catch any DB propagation delay
+  setTimeout(async function(){ await loadAll(); renderCal(); refreshBadge(); }, 800);
 }
 
 async function qDel(evId){
