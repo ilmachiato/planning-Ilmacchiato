@@ -183,8 +183,8 @@ body{font-family:'DM Sans',system-ui,sans-serif;background:var(--bg);color:var(-
     <!-- TABS -->
     <div class="tabs" id="tab-bar">
       <div class="tab on" onclick="showTab('calendar')" data-tab="calendar">📅 Calendrier</div>
-      <div class="tab" onclick="showTab('pending')" data-tab="pending" id="tab-pending" style="display:none">⏳ Demandes <span id="tab-count" style="background:var(--orange-light);color:var(--orange);border-radius:20px;padding:1px 7px;font-size:.7rem;font-weight:700"></span></div>
-      <div class="tab" onclick="showTab('team')" data-tab="team" id="tab-team" style="display:none">👥 Équipe</div>
+      <div class="tab" onclick="showTab('pending')" data-tab="pending" id="nav-pending" style="display:none">⏳ Demandes <span id="tab-count" style="background:var(--orange-light);color:var(--orange);border-radius:20px;padding:1px 7px;font-size:.7rem;font-weight:700"></span></div>
+      <div class="tab" onclick="showTab('team')" data-tab="team" id="nav-team" style="display:none">👥 Équipe</div>
     </div>
 
     <!-- CALENDAR TAB -->
@@ -265,8 +265,8 @@ body{font-family:'DM Sans',system-ui,sans-serif;background:var(--bg);color:var(-
 
 <script>
 // ===================== CONFIG — REMPLACE CES 2 LIGNES =====================
-const SUPABASE_URL = 'https://gpetacuedzfnvfizwqqs.supabase.co';
-const SUPABASE_KEY = 'sb_publishable_N_StWGwRjo0e4NraV-Vhwg_gehv_xPT';
+const SUPABASE_URL = 'https://VOTRE_URL.supabase.co';
+const SUPABASE_KEY = 'VOTRE_CLE_ANON';
 // =========================================================================
 
 const { createClient } = supabase;
@@ -366,8 +366,8 @@ async function initApp(user){
 
   // admin-only tabs
   if(isAdmin()){
-    document.getElementById('tab-pending').style.display='';
-    document.getElementById('tab-team').style.display='';
+    document.getElementById('nav-pending').style.display='';
+    document.getElementById('nav-team').style.display='';
     document.getElementById('notif-wrap').style.display='';
   }
 
