@@ -413,9 +413,15 @@ async function initApp(user){
 }
 
 async function loadAll(){
-  try{ var e=await db.from('events').select('*').order('date'); allEvents=e.data||[]; }catch(x){ allEvents=[]; }
-  try{ var p=await db.from('profiles').select('*').order('full_name'); allProfiles=p.data||[]; }catch(x){ allProfiles=[]; }
-  try{ var s=await db.from('shifts').select('*').order('name'); allShifts=s.data||[]; }catch(x){ allShifts=[]; }
+  var evRes=await db.from('events').select('*').order('date');
+  if(evRes.error){ console.error('events load error:', evRes.error); allEvents=[]; }
+  else { allEvents=evRes.data||[]; }
+  var prRes=await db.from('profiles').select('*').order('full_name');
+  if(prRes.error){ console.error('profiles load error:', prRes.error); allProfiles=[]; }
+  else { allProfiles=prRes.data||[]; }
+  var shRes=await db.from('shifts').select('*').order('name');
+  if(shRes.error){ console.error('shifts load error:', shRes.error); allShifts=[]; }
+  else { allShifts=shRes.data||[]; }
 }
 async function seedShifts(){
   var rows=DS.map(function(s){ return {name:s.name,color:s.color,time_start:s.ts,time_end:s.te,created_by:me.id}; });
@@ -523,7 +529,9 @@ function openCellAssign(empId, ds){
   var dayStr=DFULL[d.getDay()===0?6:d.getDay()-1]+' '+d.getDate()+' '+MON[d.getMonth()];
   G('ap-title').textContent='Assigner - '+dayStr;
   var days=[ds];
-  selWeekDays=getWeekDays().map(dk);
+  selWeekDays=[];
+  for(var i=0;i<7;i++) selWeekDays.push(dk(addD(mondayOf(new Date(ds+'T12:00')),i)));
+  console.log('cellAssign selWeekDays:', selWeekDays, 'target:', ds);
   fillApSelects(empId);
   var dr=G('day-pills'); dr.innerHTML='';
   DFULL.forEach(function(name,i){
@@ -542,7 +550,11 @@ function toggleAssignPanel(){
   var panel=G('assign-panel');
   if(panel.style.display!=='none'){ closeAssign(); return; }
   G('ap-title').textContent='Assigner la semaine';
-  selWeekDays=getWeekDays().map(dk);
+  // Rebuild selWeekDays fresh from current weekStart
+  weekStart=mondayOf(weekStart);
+  selWeekDays=[];
+  for(var i=0;i<7;i++) selWeekDays.push(dk(addD(weekStart,i)));
+  console.log('selWeekDays:', selWeekDays);
   fillApSelects(null);
   var dr=G('day-pills'); dr.innerHTML='';
   DFULL.forEach(function(name,i){
@@ -579,26 +591,58 @@ function closeAssign(){ G('assign-panel').style.display='none'; selWeekDays=[]; 
 
 async function applyAssign(){
   var empId=G('ap-emp').value, shiftId=G('ap-shift').value;
-  if(!empId||!shiftId){ G('ap-msg').textContent='Choisissez employe et creneau.'; return; }
+  if(!empId){ G('ap-msg').textContent='Choisissez un employe.'; return; }
+  if(!shiftId){ G('ap-msg').textContent='Choisissez un creneau.'; return; }
   var active=[];
   G('day-pills').querySelectorAll('.dp.on').forEach(function(b){ active.push(parseInt(b.dataset.idx)); });
   if(!active.length){ G('ap-msg').textContent='Selectionnez au moins un jour.'; return; }
-  G('ap-msg').textContent='Enregistrement...';
-  var count=0;
+  G('ap-msg').textContent='En cours...';
+  var errors=[], count=0;
   for(var i=0;i<active.length;i++){
-    var ds=selWeekDays[active[i]];
+    var idx=active[i];
+    var ds=selWeekDays[idx];
     if(!ds) continue;
-    var existing=evForDay(empId,ds);
-    try{
-      if(existing){ await db.from('events').update({shift_id:shiftId,status:'approved',updated_by:me.id}).eq('id',existing.id); }
-      else{ await db.from('events').insert({employee_id:empId,date:ds,shift_id:shiftId,status:'approved',created_by:me.id}); }
+    // First try to find existing event for this employee+date
+    var existing=null;
+    for(var j=0;j<allEvents.length;j++){
+      var ev=allEvents[j];
+      var evdate=(ev.date||'').slice(0,10);
+      if(ev.employee_id===empId && evdate===ds && ev.status!=='rejected'){
+        existing=ev; break;
+      }
+    }
+    var res;
+    if(existing){
+      res=await db.from('events')
+        .update({shift_id:shiftId, status:'approved', updated_by:me.id})
+        .eq('id', existing.id);
+    } else {
+      res=await db.from('events')
+        .insert({
+          employee_id: empId,
+          date: ds,
+          shift_id: shiftId,
+          status: 'approved',
+          created_by: me.id
+        });
+    }
+    if(res && res.error){
+      errors.push(ds+': '+res.error.message);
+    } else {
       count++;
-    }catch(x){}
+    }
   }
-  toast(count+' creneau(x) assigne(s)');
-  G('ap-msg').textContent=count+' jours enregistres.';
-  await loadAll(); renderPlanning(); refreshBadge();
-  setTimeout(async function(){ await loadAll(); renderPlanning(); },800);
+  if(errors.length>0){
+    G('ap-msg').textContent='Erreur: '+errors[0];
+    toast('Erreur: '+errors[0].slice(0,60));
+  } else {
+    G('ap-msg').textContent=count+' jour(s) enregistre(s)';
+    toast(count+' creneau(x) assigne(s)');
+  }
+  // Reload and redisplay
+  await loadAll();
+  renderPlanning();
+  refreshBadge();
 }
 
 async function qDel(evId){
