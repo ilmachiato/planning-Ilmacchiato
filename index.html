@@ -657,12 +657,12 @@ function renderPlanning(){
     for(var di=0;di<7;di++){
       var ds=dk(days[di]), isTod=ds===dk(NOW);
       var ev=evForDay(emp.id,ds), sh=ev?shiftById(ev.shift_id):null, isPend=ev&&ev.status==='pending';
-      tb+='<td class="day-td'+(isTod?' today-td':'')+(isAdmin()?'" onclick="cellClick(&apos;'+emp.id+'&apos;,&apos;'+ds+'&apos;)"':'" style="cursor:default"')+'>';
+      tb+='<td class="day-td'+(isTod?' today-td':'')+(isAdmin()?'" class="day-td-clickable" data-empid="'+emp.id+'" data-ds="'+ds+'"':'" style="cursor:default"')+'>';
       if(sh){
         var bg=isPend?'var(--oral)':BG[sh.color||0], tx=isPend?'var(--ora)':TX[sh.color||0];
         var hrs=sh.time_start?sh.time_start.slice(0,5)+'-'+(sh.time_end||'').slice(0,5):'';
         tb+='<div class="shift-pill" style="background:'+bg+';color:'+tx+'"><div><span>'+(isPend?'&#x23F3; ':'')+esc(sh.name)+'</span>'+(hrs?'<span class="sp-hrs">'+hrs+'</span>':'')+'</div>';
-        if(isAdmin()) tb+='<span class="sp-del" onclick="event.stopPropagation();qDel(&apos;'+ev.id+'&apos;)">&#x2715;</span>';
+        if(isAdmin()) tb+='<span class="sp-del ev-del-btn" data-id="'+ev.id+'">&#x2715;</span>';
         tb+='</div>';
       } else if(isAdmin()){ tb+='<div class="add-hint">+</div>'; }
       tb+='</td>';
@@ -671,6 +671,13 @@ function renderPlanning(){
   }
   G('pt-body').innerHTML=tb;
   renderLegend();
+  // Event delegation for planning cells (avoids &apos; in onclick)
+  G('pt-body').querySelectorAll('.day-td-clickable').forEach(function(td){
+    td.addEventListener('click', function(){ cellClick(this.dataset.empid, this.dataset.ds); });
+  });
+  G('pt-body').querySelectorAll('.ev-del-btn').forEach(function(btn){
+    btn.addEventListener('click', function(e){ e.stopPropagation(); qDel(this.dataset.id); });
+  });
 }
 
 function cellClick(empId,ds){
@@ -748,14 +755,22 @@ function renderLegend(){
 function renderPending(){
   var list=getPending(), el=G('pend-list');
   if(!list.length){ el.innerHTML='<div class="empty">Aucune demande en attente</div>'; return; }
-  el.innerHTML=list.map(function(ev){
+  var html='';
+  list.forEach(function(ev){
     var emp=null,sh=null;
     for(var i=0;i<allProfiles.length;i++){ if(allProfiles[i].id===ev.employee_id){ emp=allProfiles[i]; break; } }
     for(var i=0;i<allShifts.length;i++){ if(allShifts[i].id===ev.shift_id){ sh=allShifts[i]; break; } }
     var dd=new Date((ev.date||'')+'T12:00'), ds=isNaN(dd)?'-':DFR[dd.getDay()===0?6:dd.getDay()-1]+' '+dd.getDate()+' '+MON[dd.getMonth()];
     var col=sh?(sh.color||0):0;
-    return '<div class="rcard"><div class="rbar" style="background:'+BG[col]+'"></div><div class="rinfo"><h4>'+esc(sh?sh.name:'-')+' - '+esc(emp?emp.full_name||emp.email:'-')+'</h4><p>'+ds+'</p></div><div class="ract"><button class="btn grn sm" onclick="approve(&apos;'+ev.id+'&apos;)">Approuver</button><button class="btn red sm" onclick="reject(&apos;'+ev.id+'&apos;)">Rejeter</button></div></div>';
-  }).join('');
+    html+='<div class="rcard">';
+    html+='<div class="rbar" style="background:'+BG[col]+'"></div>';
+    html+='<div class="rinfo"><h4>'+esc(sh?sh.name:'-')+' - '+esc(emp?emp.full_name||emp.email:'-')+'</h4><p>'+ds+'</p></div>';
+    html+='<div class="ract"><button class="btn grn sm pend-approve" data-id="'+ev.id+'">Approuver</button><button class="btn red sm pend-reject" data-id="'+ev.id+'">Rejeter</button></div>';
+    html+='</div>';
+  });
+  el.innerHTML=html;
+  el.querySelectorAll('.pend-approve').forEach(function(btn){ btn.addEventListener('click', function(){ approve(this.dataset.id); }); });
+  el.querySelectorAll('.pend-reject').forEach(function(btn){ btn.addEventListener('click', function(){ reject(this.dataset.id); }); });
 }
 async function approve(id){ await db.from('events').update({status:'approved'}).eq('id',id); toast('Approuve'); await loadAll(); renderPlanning(); renderPending(); refreshBadge(); }
 async function reject(id){ if(!confirm('Rejeter ?')) return; await db.from('events').update({status:'rejected'}).eq('id',id); toast('Rejete'); await loadAll(); renderPlanning(); renderPending(); refreshBadge(); }
@@ -764,7 +779,14 @@ async function reject(id){ if(!confirm('Rejeter ?')) return; await db.from('even
 function renderShifts(){
   var el=G('shift-list');
   if(!allShifts.length){ el.innerHTML='<div class="empty">Aucun creneau</div>'; return; }
-  el.innerHTML=allShifts.map(function(s){ return '<div class="si" onclick="openShiftModal(&apos;'+s.id+'&apos;)"><div class="sw" style="background:'+BG[s.color||0]+'"></div><span style="flex:1;font-size:.82rem;font-weight:500">'+esc(s.name)+'</span><span style="font-size:.72rem;color:var(--t2)">'+(s.time_start?s.time_start.slice(0,5)+'-'+(s.time_end||'').slice(0,5):'')+'</span></div>'; }).join('');
+  var html='';
+  allShifts.forEach(function(s){
+    html+='<div class="si shift-edit-btn" data-id="'+s.id+'"><div class="sw" style="background:'+BG[s.color||0]+'"></div><span style="flex:1;font-size:.82rem;font-weight:500">'+esc(s.name)+'</span><span style="font-size:.72rem;color:var(--t2)">'+(s.time_start?s.time_start.slice(0,5)+'-'+(s.time_end||'').slice(0,5):'')+'</span></div>';
+  });
+  el.innerHTML=html;
+  el.querySelectorAll('.shift-edit-btn').forEach(function(btn){
+    btn.addEventListener('click', function(){ openShiftModal(this.dataset.id); });
+  });
 }
 function openShiftModal(id){
   editShiftId=id||null;
@@ -791,14 +813,28 @@ async function deleteShift(){
 // EMPLOYES
 function renderTeam(){
   if(!allProfiles.length){ G('team-body').innerHTML='<div class="empty">Aucun employe</div>'; return; }
-  G('team-body').innerHTML=allProfiles.map(function(p,idx){
+  var html = '';
+  allProfiles.forEach(function(p,idx){
     var ai=idx%AVBG.length, init=(p.full_name||p.email||'?')[0].toUpperCase();
     var ap=allEvents.filter(function(e){ return e.employee_id===p.id&&e.status==='approved'; }).length;
     var pn=allEvents.filter(function(e){ return e.employee_id===p.id&&e.status==='pending'; }).length;
-    return '<div class="tcard"><div style="display:flex;align-items:center;gap:.5rem;margin-bottom:.5rem"><div style="width:32px;height:32px;border-radius:50%;background:'+AVBG[ai]+';color:'+AVTX[ai]+';display:flex;align-items:center;justify-content:center;font-weight:700;font-size:.82rem">'+init+'</div><div style="flex:1"><div style="font-size:.82rem;font-weight:600">'+esc(p.full_name||p.email)+'</div><span class="rbadge '+p.role+'">'+p.role+'</span></div>'+(isAdmin()?'<button class="btn sm" onclick="openEmpModal(&apos;'+p.id+'&apos;)" style="font-size:.7rem;padding:.2rem .45rem">Modifier</button>':'')+'</div><div style="font-size:.74rem;color:var(--t2)">'+ap+' shift(s)'+(pn?' - <span style="color:var(--red)">'+pn+' en attente</span>':'')+'</div></div>';
-  }).join('');
+    html += '<div class="tcard">';
+    html += '<div style="display:flex;align-items:center;gap:.5rem;margin-bottom:.5rem">';
+    html += '<div style="width:32px;height:32px;border-radius:50%;background:'+AVBG[ai]+';color:'+AVTX[ai]+';display:flex;align-items:center;justify-content:center;font-weight:700;font-size:.82rem">'+init+'</div>';
+    html += '<div style="flex:1"><div style="font-size:.82rem;font-weight:600">'+esc(p.full_name||p.email)+'</div><span class="rbadge '+p.role+'">'+p.role+'</span></div>';
+    if(isAdmin()) html += '<button class="btn sm emp-edit-btn" data-id="'+p.id+'" style="font-size:.7rem;padding:.2rem .45rem">Modifier</button>';
+    html += '</div>';
+    html += '<div style="font-size:.74rem;color:var(--t2)">'+ap+' shift(s)'+(pn?' - <span style="color:var(--red)">'+pn+' en attente</span>':'')+'</div>';
+    html += '</div>';
+  });
+  G('team-body').innerHTML = html;
+  // Attach click events via data-id (avoids &apos; encoding issues)
+  G('team-body').querySelectorAll('.emp-edit-btn').forEach(function(btn){
+    btn.addEventListener('click', function(){ openEmpModal(this.dataset.id); });
+  });
 }
 function openEmpModal(id){
+  if(!isAdmin()){ toast('Acces refuse.'); return; }
   editEmpId=id||null;
   var emp=null; if(id){ for(var i=0;i<allProfiles.length;i++){ if(allProfiles[i].id===id){ emp=allProfiles[i]; break; } } }
   G('em-title').textContent=emp?'Modifier employe':'Ajouter un employe';
@@ -810,6 +846,7 @@ function openEmpModal(id){
 }
 function closeEmpModal(){ G('ov-emp').style.display='none'; editEmpId=null; }
 async function saveEmp(){
+  if(!isAdmin()){ toast('Acces refuse.'); closeEmpModal(); return; }
   var name=G('em-name').value.trim(), pass=G('em-pass').value, role=G('em-role').value;
   var errEl=G('em-err'); errEl.style.display='none';
   if(!name){ errEl.textContent='Le nom est requis.'; errEl.style.display='block'; return; }
@@ -827,6 +864,7 @@ async function saveEmp(){
   toast('Compte cree pour '+name); closeEmpModal(); await loadAll(); renderTeam();
 }
 async function deleteEmp(){
+  if(!isAdmin()){ toast('Acces refuse.'); return; }
   if(!editEmpId||!confirm('Supprimer cet employe ? Ses plannings seront aussi supprimes.')) return;
   await db.from('events').delete().eq('employee_id',editEmpId);
   await db.from('team_members').delete().eq('profile_id',editEmpId);
@@ -836,12 +874,25 @@ async function deleteEmp(){
 
 // EQUIPES
 function renderTeams(){
-  if(!allTeams.length){ G('teams-list').innerHTML='<div class="empty">Aucune equipe. Creez-en une ci-dessus.</div>'; return; }
-  G('teams-list').innerHTML=allTeams.map(function(team){
+  var el=G('teams-list');
+  if(!allTeams.length){ el.innerHTML='<div class="empty">Aucune equipe. Creez-en une ci-dessus.</div>'; return; }
+  var html='';
+  allTeams.forEach(function(team){
     var members=allTeamMembers.filter(function(m){ return m.team_id===team.id; });
     var mprofs=members.map(function(m){ for(var i=0;i<allProfiles.length;i++){ if(allProfiles[i].id===m.profile_id) return allProfiles[i]; } return null; }).filter(Boolean);
-    return '<div style="background:var(--surf);border:1px solid var(--b);border-radius:var(--rl);padding:.9rem;cursor:pointer" onclick="openTeamModal(&apos;'+team.id+'&apos;)"><div style="display:flex;align-items:center;gap:.4rem;margin-bottom:.6rem"><div style="width:12px;height:12px;border-radius:3px;background:'+BG[team.color||0]+'"></div><span style="font-size:.85rem;font-weight:700">'+esc(team.name)+'</span><span style="margin-left:auto;font-size:.72rem;color:var(--t2)">'+mprofs.length+' membre(s)</span></div><div style="display:flex;flex-wrap:wrap;gap:.28rem">'+mprofs.map(function(p,i){ var ai=i%AVBG.length; return '<span style="background:'+AVBG[ai]+';color:'+AVTX[ai]+';padding:2px 8px;border-radius:20px;font-size:.72rem;font-weight:500">'+(p.full_name||p.email||'?').split(' ')[0]+'</span>'; }).join('')+'</div></div>';
-  }).join('');
+    html+='<div class="team-card-btn" data-id="'+team.id+'" style="background:var(--surf);border:1px solid var(--b);border-radius:var(--rl);padding:.9rem;cursor:pointer">';
+    html+='<div style="display:flex;align-items:center;gap:.4rem;margin-bottom:.6rem">';
+    html+='<div style="width:12px;height:12px;border-radius:3px;background:'+BG[team.color||0]+'"></div>';
+    html+='<span style="font-size:.85rem;font-weight:700">'+esc(team.name)+'</span>';
+    html+='<span style="margin-left:auto;font-size:.72rem;color:var(--t2)">'+mprofs.length+' membre(s)</span></div>';
+    html+='<div style="display:flex;flex-wrap:wrap;gap:.28rem">';
+    mprofs.forEach(function(p,i){ var ai=i%AVBG.length; html+='<span style="background:'+AVBG[ai]+';color:'+AVTX[ai]+';padding:2px 8px;border-radius:20px;font-size:.72rem;font-weight:500">'+(p.full_name||p.email||'?').split(' ')[0]+'</span>'; });
+    html+='</div></div>';
+  });
+  el.innerHTML=html;
+  el.querySelectorAll('.team-card-btn').forEach(function(btn){
+    btn.addEventListener('click', function(){ openTeamModal(this.dataset.id); });
+  });
 }
 function openTeamModal(id){
   editTeamId=id||null;
@@ -880,11 +931,12 @@ function renderShopping(){
     allProfiles.forEach(function(p){ var o=document.createElement('option'); o.value=p.id; o.textContent=p.full_name||p.email; if(p.id===cur) o.selected=true; fs.appendChild(o); });
     G('shop-summary').style.display='';
     G('shop-summary').innerHTML=allProfiles.map(function(p,idx){
-      var pi=allShopItems.filter(function(i){ return i.employee_id===p.id; });
+      var pi=allShopItems.filter(function(i){ return i.employee_id===p.id;
+  G('shop-summary').querySelectorAll('.shop-sum-btn').forEach(function(el){ el.addEventListener('click', function(){ filterShopEmp(this.dataset.empid); }); }); });
       if(!pi.length) return '';
       var done=pi.filter(function(i){ return i.status==='bought'; }).length, pct=Math.round(done/pi.length*100);
       var ai=idx%AVBG.length, init=(p.full_name||p.email||'?')[0].toUpperCase(), isActive=cur===p.id;
-      return '<div class="shop-sum-card'+(isActive?' active':'')+'" onclick="filterShopEmp(&apos;'+p.id+'&apos;)"><div style="display:flex;align-items:center;gap:.38rem;margin-bottom:.28rem"><div style="width:22px;height:22px;border-radius:50%;background:'+AVBG[ai]+';color:'+AVTX[ai]+';display:flex;align-items:center;justify-content:center;font-size:.68rem;font-weight:700">'+init+'</div><span style="font-size:.78rem;font-weight:600;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+esc((p.full_name||p.email||'').split(' ')[0])+'</span></div><div style="font-size:.7rem;color:var(--t2)">'+done+'/'+pi.length+' achete(s)</div><div class="shop-prog"><div class="shop-prog-bar" style="width:'+pct+'%"></div></div></div>';
+      return '<div class="shop-sum-card'+(isActive?' active':'')+'  shop-sum-btn" data-empid="'+p.id+'"><div style="display:flex;align-items:center;gap:.38rem;margin-bottom:.28rem"><div style="width:22px;height:22px;border-radius:50%;background:'+AVBG[ai]+';color:'+AVTX[ai]+';display:flex;align-items:center;justify-content:center;font-size:.68rem;font-weight:700">'+init+'</div><span style="font-size:.78rem;font-weight:600;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+esc((p.full_name||p.email||'').split(' ')[0])+'</span></div><div style="font-size:.7rem;color:var(--t2)">'+done+'/'+pi.length+' achete(s)</div><div class="shop-prog"><div class="shop-prog-bar" style="width:'+pct+'%"></div></div></div>';
     }).join('');
   } else { G('shop-filter-wrap').style.display='none'; G('shop-summary').style.display='none'; }
   var empFilter=isAdmin()?(G('shop-filter-emp')?G('shop-filter-emp').value:''):me.id;
@@ -900,11 +952,25 @@ function renderShopping(){
     pending.concat(bought).forEach(function(item){
       var emp=null; for(var i=0;i<allProfiles.length;i++){ if(allProfiles[i].id===item.employee_id){ emp=allProfiles[i]; break; } }
       var isDone=item.status==='bought';
-      h+='<div class="shop-item'+(isDone?' bought':'')+'"><div class="shop-check'+(isDone?' done':'')+'" onclick="toggleShop(&apos;'+item.id+'&apos;,&apos;'+(isDone?'pending':'bought')+'&apos;)">'+(isDone?'&#10003;':'')+'</div><div style="flex:1;min-width:0"><div style="display:flex;align-items:center;gap:.35rem;flex-wrap:wrap"><span class="shop-name">'+esc(item.name)+'</span>'+(item.quantity&&item.quantity!=='1'?'<span class="shop-qty">'+esc(item.quantity)+'</span>':'')+(isAdmin()&&emp?'<span class="shop-emp-tag">'+esc((emp.full_name||emp.email||'').split(' ')[0])+'</span>':'')+'</div>'+(item.note?'<div class="shop-note">'+esc(item.note)+'</div>':'')+'</div><button class="shop-edit" onclick="openShopModal(&apos;'+item.id+'&apos;)">Modifier</button></div>';
+      h+='<div class="shop-item'+(isDone?' bought':'')+'">';
+      h+='<div class="shop-check'+(isDone?' done':'')+' shop-toggle-btn" data-id="'+item.id+'" data-status="'+(isDone?'pending':'bought')+'">'+(isDone?'&#10003;':'')+'</div>';
+      h+='<div style="flex:1;min-width:0"><div style="display:flex;align-items:center;gap:.35rem;flex-wrap:wrap"><span class="shop-name">'+esc(item.name)+'</span>';
+      if(item.quantity&&item.quantity!=='1') h+='<span class="shop-qty">'+esc(item.quantity)+'</span>';
+      if(isAdmin()&&emp) h+='<span class="shop-emp-tag">'+esc((emp.full_name||emp.email||'').split(' ')[0])+'</span>';
+      h+='</div>';
+      if(item.note) h+='<div class="shop-note">'+esc(item.note)+'</div>';
+      h+='</div><button class="shop-edit shop-edit-btn" data-id="'+item.id+'">Modifier</button></div>';
     });
     h+='</div>';
   });
   G('shop-list').innerHTML=h;
+  // Attach events via data-id (no &apos; issues)
+  G('shop-list').querySelectorAll('.shop-toggle-btn').forEach(function(el){
+    el.addEventListener('click', function(){ toggleShop(this.dataset.id, this.dataset.status); });
+  });
+  G('shop-list').querySelectorAll('.shop-edit-btn').forEach(function(el){
+    el.addEventListener('click', function(){ openShopModal(this.dataset.id); });
+  });
 }
 function filterShopEmp(empId){ var fs=G('shop-filter-emp'); if(fs){ fs.value=fs.value===empId?'':empId; } renderShopping(); }
 async function toggleShop(id,newStatus){ await db.from('shopping_items').update({status:newStatus}).eq('id',id); await loadAll(); updateShopBadge(); renderShopping(); }
@@ -937,7 +1003,16 @@ async function deleteShopItem(){
 
 // UTILS
 function buildColors(elId,sel,varName){
-  document.getElementById(elId).innerHTML=BG.map(function(bg,i){ return '<div class="copt'+(i===sel?' on':'')+'" style="background:'+bg+'" onclick="'+varName+'='+i+';buildColors(&apos;'+elId+'&apos;,'+i+',&apos;'+varName+'&apos;)"></div>'; }).join('');
+  var el=document.getElementById(elId);
+  el.innerHTML=BG.map(function(bg,i){ return '<div class="copt'+(i===sel?' on':'')+' color-pick-btn" data-idx="'+i+'" style="background:'+bg+'"></div>'; }).join('');
+  el.querySelectorAll('.color-pick-btn').forEach(function(dot){
+    dot.addEventListener('click', function(){
+      var idx=parseInt(this.dataset.idx);
+      if(varName==='smColor') smColor=idx;
+      else if(varName==='tmColor') tmColor=idx;
+      buildColors(elId, idx, varName);
+    });
+  });
 }
 
 
