@@ -167,7 +167,81 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 .legend{display:flex;flex-wrap:wrap;gap:.5rem;margin-top:.75rem}
 .lgi{display:flex;align-items:center;gap:.3rem;font-size:.72rem;color:var(--t2)}
 .lgd{width:10px;height:10px;border-radius:2px}
-@media(max-width:768px){.sidebar{display:none}.day-td{min-width:80px}}
+
+/* ===== RESPONSIVE MOBILE/TABLET ===== */
+
+/* Bottom nav for mobile */
+.bottom-nav{display:none;position:fixed;bottom:0;left:0;right:0;background:#0a0a0a;border-top:1px solid rgba(255,255,255,.1);z-index:50;padding:.35rem 0 calc(.35rem + env(safe-area-inset-bottom));justify-content:space-around}
+.bnav-item{display:flex;flex-direction:column;align-items:center;gap:2px;padding:.3rem .5rem;cursor:pointer;color:rgba(255,255,255,.5);font-size:.6rem;font-weight:500;min-width:48px;border:none;background:none}
+.bnav-item.on{color:#fff}
+.bnav-item .ico{font-size:18px;line-height:1}
+.bnav-badge{background:var(--red);color:#fff;border-radius:50%;width:14px;height:14px;font-size:8px;display:flex;align-items:center;justify-content:center;position:absolute;top:-2px;right:-2px;font-weight:700}
+.bnav-item-wrap{position:relative;display:inline-flex}
+
+@media(max-width:768px){
+  /* Hide desktop sidebar */
+  .sidebar{display:none}
+  /* Show bottom nav */
+  .bottom-nav{display:flex}
+  /* Content padding for bottom nav */
+  .content{padding:.75rem .75rem calc(70px + env(safe-area-inset-bottom)) .75rem}
+  /* Topbar compact */
+  .topbar{padding:0 .75rem;height:48px}
+  .topbar-logo img{height:28px}
+  .tbr{right:.75rem;gap:.3rem}
+  .upill{display:none}
+  /* Planning header stack */
+  .plan-hd{flex-direction:column;align-items:flex-start;gap:.5rem}
+  .plan-hd>div[style*="margin-left:auto"]{margin-left:0!important;width:100%}
+  #btn-assign{width:100%}
+  /* Week nav full width */
+  .week-nav{width:100%}
+  .week-nav .wlbl{flex:1;min-width:0;font-size:.78rem}
+  /* Planning table - horizontal scroll */
+  .pt-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch}
+  .pt{min-width:600px}
+  .emp-td{min-width:100px;max-width:120px;font-size:.75rem;padding:.4rem .5rem}
+  .emp-av{width:20px;height:20px;font-size:.62rem;margin-right:.3rem}
+  .day-td{min-width:72px;height:52px;padding:.15rem .12rem}
+  .shift-pill{padding:.2rem .3rem;font-size:.66rem}
+  .shift-pill .sp-hrs{display:none}
+  /* Assign panel */
+  .assign-panel{padding:.9rem}
+  .ap-grid{grid-template-columns:1fr}
+  .day-pills{gap:.25rem}
+  .dp{padding:.25rem .5rem;font-size:.7rem}
+  /* Modals full screen on mobile */
+  .ov{padding:.5rem;align-items:flex-end}
+  .modal{width:100%!important;max-width:100%;border-radius:var(--rl) var(--rl) 0 0;padding:1.2rem;max-height:90vh;overflow-y:auto}
+  /* Team grid 1 col */
+  .team-grid{grid-template-columns:1fr}
+  .tcard{padding:.75rem}
+  /* Shifts list */
+  .slist{max-height:180px}
+  /* Pending cards stack */
+  .rcard{flex-direction:column;align-items:flex-start;gap:.5rem}
+  .ract{width:100%;justify-content:flex-end}
+  /* Auth box */
+  .auth-box{padding:1.5rem 1.2rem}
+  /* Plan hint hidden on mobile */
+  #plan-hint{display:none}
+}
+
+@media(max-width:380px){
+  .emp-td{min-width:80px;font-size:.68rem}
+  .day-td{min-width:60px}
+  .shift-pill{font-size:.6rem}
+  .week-nav .wlbl{font-size:.72rem}
+}
+
+@media(min-width:769px) and (max-width:1024px){
+  /* Tablet */
+  .sidebar{width:160px}
+  .sitem{font-size:.78rem;padding:.45rem .75rem}
+  .day-td{min-width:85px}
+  .emp-td{min-width:120px}
+  .content{padding:1rem}
+}
 </style>
 </head>
 <body>
@@ -210,6 +284,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
       <div class="sitem" data-v="pending" id="snav-pending" style="display:none" onclick="goView('pending')"><span class="ico">&#9203;</span> Demandes <span class="cbadge" id="pend-n" style="display:none">0</span></div>
       <div class="sitem" data-v="shifts" id="snav-shifts" style="display:none" onclick="goView('shifts')"><span class="ico">&#9881;</span> Creneaux</div>
       <div class="sitem" data-v="team" id="snav-team" style="display:none" onclick="goView('team')"><span class="ico">&#128101;</span> Equipe</div>
+      <div class="sitem" data-v="teams" id="snav-teams" style="display:none" onclick="goView('teams')"><span class="ico">&#128106;</span> Equipes</div>
     </div>
 
     <div class="content">
@@ -273,11 +348,92 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
         <button class="btn acc sm" onclick="openShiftModal(null)">+ Nouveau creneau</button>
       </div>
 
-      <!-- TEAM -->
+      <!-- TEAM (membres) -->
       <div id="view-team" style="display:none">
-        <div class="pnl-hd">&#128101; Membres de l'equipe</div>
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem">
+          <div class="pnl-hd" style="margin:0">&#128101; Membres de l'equipe</div>
+          <button class="btn acc sm" id="btn-add-emp" style="display:none" onclick="openEmpModal(null)">+ Ajouter un employe</button>
+        </div>
         <div class="team-grid" id="team-body"></div>
       </div>
+
+      <!-- TEAMS (groupes) -->
+      <div id="view-teams" style="display:none">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem">
+          <div class="pnl-hd" style="margin:0">&#128106; Gerer les equipes</div>
+          <button class="btn acc sm" onclick="openTeamModal(null)">+ Nouvelle equipe</button>
+        </div>
+        <div id="teams-list"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+  <!-- BOTTOM NAV (mobile only) -->
+  <nav class="bottom-nav" id="bottom-nav">
+    <button class="bnav-item on" data-v="planning" onclick="goView('planning');setBnav(this)">
+      <span class="ico">&#128197;</span>Planning
+    </button>
+    <button class="bnav-item" data-v="pending" id="bnav-pending" style="display:none" onclick="goView('pending');setBnav(this)">
+      <div class="bnav-item-wrap">
+        <span class="ico">&#9203;</span>
+        <span class="bnav-badge" id="bnav-badge" style="display:none">0</span>
+      </div>
+      Demandes
+    </button>
+    <button class="bnav-item" data-v="shifts" id="bnav-shifts" style="display:none" onclick="goView('shifts');setBnav(this)">
+      <span class="ico">&#9881;</span>Creneaux
+    </button>
+    <button class="bnav-item" data-v="team" id="bnav-team" style="display:none" onclick="goView('team');setBnav(this)">
+      <span class="ico">&#128101;</span>Equipe
+    </button>
+    <button class="bnav-item" data-v="teams" id="bnav-teams" style="display:none" onclick="goView('teams');setBnav(this)">
+      <span class="ico">&#128106;</span>Equipes
+    </button>
+  </nav>
+
+<!-- EMPLOYEE MODAL -->
+<div class="ov" id="ov-emp" style="display:none" onclick="if(event.target===this)closeEmpModal()">
+  <div class="modal" onclick="event.stopPropagation()">
+    <h2 id="em-title">Ajouter un employe</h2>
+    <label>Nom complet *</label>
+    <input id="em-name" placeholder="Ex: Ahmed Marouan"/>
+    <label>Email *</label>
+    <input id="em-email" type="email" placeholder="ahmed@ilmacchiato.fr"/>
+    <label>Mot de passe provisoire *</label>
+    <input id="em-pass" type="text" placeholder="Au moins 6 caracteres"/>
+    <label>Role</label>
+    <select id="em-role">
+      <option value="employee">Employe</option>
+      <option value="manager">Manager</option>
+      <option value="admin">Admin</option>
+    </select>
+    <div id="em-edit-only" style="display:none">
+      <label>Changer le role</label>
+    </div>
+    <div id="em-err" style="background:var(--redl);color:var(--red);border:1px solid rgba(255,107,107,.3);border-radius:var(--r);padding:.55rem .75rem;font-size:.8rem;margin-bottom:.78rem;display:none"></div>
+    <div class="mfoot">
+      <button class="btn red sm" id="em-del" style="display:none;margin-right:auto" onclick="deleteEmp()">Supprimer</button>
+      <button class="btn sm" onclick="closeEmpModal()">Annuler</button>
+      <button class="btn acc sm" id="em-save-btn" onclick="saveEmp()">Creer le compte</button>
+    </div>
+  </div>
+</div>
+
+<!-- TEAM MODAL -->
+<div class="ov" id="ov-team" style="display:none" onclick="if(event.target===this)closeTeamModal()">
+  <div class="modal" onclick="event.stopPropagation()" style="width:480px">
+    <h2 id="tm-title">Nouvelle equipe</h2>
+    <label>Nom de l'equipe *</label>
+    <input id="tm-name" placeholder="Ex: Equipe Matin, Equipe Weekend..."/>
+    <label>Couleur</label>
+    <div class="cgrid" id="tm-colors"></div>
+    <label>Membres</label>
+    <div id="tm-members-list" style="display:flex;flex-direction:column;gap:.35rem;margin-bottom:.78rem;max-height:200px;overflow-y:auto"></div>
+    <div class="mfoot">
+      <button class="btn red sm" id="tm-del" style="display:none;margin-right:auto" onclick="deleteTeam()">Supprimer l'equipe</button>
+      <button class="btn sm" onclick="closeTeamModal()">Annuler</button>
+      <button class="btn acc sm" onclick="saveTeam()">Enregistrer</button>
     </div>
   </div>
 </div>
@@ -328,6 +484,8 @@ var BG = ['#DBEAFE','#DCFCE7','#FEF9C3','#FFE4E6','#EDE9FE','#FFEDD5','#E0F2FE',
 var TX = ['#1e40af','#15803d','#854d0e','#9f1239','#5b21b6','#9a3412','#075985','#6b21a8','#065f46','#9f1239'];
 var AVBG= ['#DBEAFE','#DCFCE7','#FEF9C3','#FFE4E6','#EDE9FE','#FFEDD5','#E0F2FE','#F3E8FF'];
 var AVTX= ['#1e40af','#15803d','#854d0e','#9f1239','#5b21b6','#9a3412','#075985','#6b21a8'];
+
+var allTeams=[], allTeamMembers=[];
 
 var DS = [
   {name:'Conge',                color:3, ts:null,    te:null},
@@ -401,11 +559,17 @@ async function initApp(user){
   G('disp-name').textContent=myProfile.full_name||user.email;
   var rb=G('disp-role'); rb.textContent=myProfile.role||'employee'; rb.className='rbadge '+(myProfile.role||'employee');
   if(isAdmin()){
-    G('snav-pending').style.display=''; G('snav-shifts').style.display=''; G('snav-team').style.display='';
+    G('snav-pending').style.display=''; G('snav-shifts').style.display='';
+    G('snav-team').style.display=''; G('snav-teams').style.display='';
     G('btn-assign').style.display='';
-    G('plan-hint').textContent='Vue semaine — cliquez sur une cellule pour modifier';
+    G('btn-add-emp').style.display='';
+    // Mobile bottom nav
+    G('bnav-pending').style.display=''; G('bnav-shifts').style.display='';
+    G('bnav-team').style.display=''; G('bnav-teams').style.display='';
+    G('plan-hint').textContent='Vue semaine — cliquez sur une cellule ou sur + Assigner semaine';
   }
   await loadAll();
+  await loadTeams();
   if(isAdmin()&&allShifts.length===0) await seedShifts();
   setupRT();
   renderPlanning();
@@ -433,6 +597,9 @@ function refreshBadge(){
   var n=getPending().length;
   G('ndot').textContent=n; G('nwrap').style.display=n>0?'':'none';
   G('pend-n').textContent=n; G('pend-n').style.display=n>0?'':'none';
+  // Mobile badge
+  var mb=G('bnav-badge');
+  if(mb){ mb.textContent=n; mb.style.display=n>0?'flex':'none'; }
 }
 function setupRT(){
   db.channel('rt').on('postgres_changes',{event:'*',schema:'public',table:'events'},async function(){
@@ -446,11 +613,12 @@ function setupRT(){
 }
 
 function goView(name){
-  ['planning','pending','shifts','team'].forEach(function(n){ G('view-'+n).style.display=n===name?'block':'none'; });
+  ['planning','pending','shifts','team','teams'].forEach(function(n){ G('view-'+n).style.display=n===name?'block':'none'; });
   document.querySelectorAll('.sitem').forEach(function(s){ s.classList.toggle('on',s.dataset.v===name); });
   if(name==='pending') renderPending();
   if(name==='shifts') renderShifts();
   if(name==='team') renderTeam();
+  if(name==='teams'){ loadTeams().then(function(){ renderTeams(); }); }
 }
 
 function navWeek(d){ weekStart=addD(weekStart,d*7); renderPlanning(); }
@@ -750,9 +918,12 @@ function renderTeam(){
     var ap=allEvents.filter(function(e){ return e.employee_id===p.id&&e.status==='approved'; }).length;
     var pn=allEvents.filter(function(e){ return e.employee_id===p.id&&e.status==='pending'; }).length;
     var init=(p.full_name||p.email||'?')[0].toUpperCase();
-    h+='<div class="tcard"><div style="display:flex;align-items:center;gap:.55rem;margin-bottom:.5rem">';
+    h+='<div class="tcard" style="position:relative">';
+    h+='<div style="display:flex;align-items:center;gap:.55rem;margin-bottom:.5rem">';
     h+='<div style="width:34px;height:34px;border-radius:50%;background:'+AVBG[ai]+';color:'+AVTX[ai]+';display:flex;align-items:center;justify-content:center;font-weight:700;font-size:.85rem">'+init+'</div>';
-    h+='<div><div style="font-size:.82rem;font-weight:600">'+esc(p.full_name||p.email)+'</div><span class="rbadge '+p.role+'">'+p.role+'</span></div></div>';
+    h+='<div style="flex:1"><div style="font-size:.82rem;font-weight:600">'+esc(p.full_name||p.email)+'</div><span class="rbadge '+p.role+'">'+p.role+'</span></div>';
+    if(isAdmin()) h+='<button class="btn sm" onclick="openEmpModal(&apos;'+p.id+'&apos;)" style="font-size:.7rem;padding:.22rem .5rem">Modifier</button>';
+    h+='</div>';
     h+='<div style="font-size:.74rem;color:var(--t2)">'+ap+' shift(s)';
     if(pn) h+=' - <span style="color:var(--red)">'+pn+' en attente</span>';
     h+='</div></div>';
@@ -760,7 +931,264 @@ function renderTeam(){
   G('team-body').innerHTML=h;
 }
 
-document.addEventListener('keydown',function(e){ if(e.key==='Escape'){ closeShiftModal(); closeAssign(); } });
+document.addEventListener('keydown',function(e){ if(e.key==='Escape'){ closeShiftModal(); closeAssign(); closeTeamModal(); closeEmpModal(); } });
+
+function setBnav(el){
+  document.querySelectorAll('.bnav-item').forEach(function(b){ b.classList.remove('on'); });
+  if(el) el.classList.add('on');
+}
+
+// Override goView to also sync bottom nav
+var _origGoView = goView;
+goView = function(name){
+  _origGoView(name);
+  var el=document.querySelector('.bnav-item[data-v="'+name+'"]');
+  setBnav(el);
+};
+
+// ===================== EMPLOYEES =====================
+
+var editEmpId = null;
+
+function openEmpModal(profileId){
+  editEmpId = profileId || null;
+  var emp = null;
+  if(profileId){
+    for(var i=0;i<allProfiles.length;i++){ if(allProfiles[i].id===profileId){ emp=allProfiles[i]; break; } }
+  }
+  document.getElementById('em-title').textContent = emp ? 'Modifier employe' : 'Ajouter un employe';
+  document.getElementById('em-save-btn').textContent = emp ? 'Enregistrer' : 'Creer le compte';
+  document.getElementById('em-name').value = emp ? (emp.full_name||'') : '';
+  document.getElementById('em-email').value = emp ? (emp.email||'') : '';
+  document.getElementById('em-pass').value = '';
+  document.getElementById('em-role').value = emp ? (emp.role||'employee') : 'employee';
+  document.getElementById('em-err').style.display = 'none';
+  // Hide email/pass fields when editing (can only change role)
+  document.getElementById('em-email').parentElement.style.display = emp ? 'none' : 'block';
+  document.getElementById('em-pass').parentElement.style.display = emp ? 'none' : 'block';
+  document.getElementById('em-del').style.display = emp ? '' : 'none';
+  document.getElementById('ov-emp').style.display = 'flex';
+  setTimeout(function(){ document.getElementById('em-name').focus(); }, 50);
+}
+
+function closeEmpModal(){
+  document.getElementById('ov-emp').style.display = 'none';
+  editEmpId = null;
+}
+
+async function saveEmp(){
+  var name  = document.getElementById('em-name').value.trim();
+  var email = document.getElementById('em-email').value.trim();
+  var pass  = document.getElementById('em-pass').value;
+  var role  = document.getElementById('em-role').value;
+  var errEl = document.getElementById('em-err');
+  errEl.style.display = 'none';
+
+  if(!name){ errEl.textContent='Le nom est requis.'; errEl.style.display='block'; return; }
+
+  if(editEmpId){
+    // Edit mode: only update role and name in profiles table
+    var r = await db.from('profiles').update({full_name:name, role:role}).eq('id', editEmpId);
+    if(r.error){ errEl.textContent='Erreur: '+r.error.message; errEl.style.display='block'; return; }
+    toast('Employe modifie');
+    closeEmpModal();
+    await loadAll();
+    renderTeam();
+    return;
+  }
+
+  // Create mode: create auth account then update profile
+  if(!email){ errEl.textContent='Email requis.'; errEl.style.display='block'; return; }
+  if(pass.length < 6){ errEl.textContent='Mot de passe: 6 caracteres minimum.'; errEl.style.display='block'; return; }
+
+  document.getElementById('em-save-btn').textContent = 'Creation...';
+
+  var r = await db.auth.signUp({
+    email: email,
+    password: pass,
+    options: { data: { full_name: name } }
+  });
+
+  if(r.error){
+    errEl.textContent = 'Erreur: '+r.error.message;
+    errEl.style.display = 'block';
+    document.getElementById('em-save-btn').textContent = 'Creer le compte';
+    return;
+  }
+
+  // Update role in profiles (trigger created the profile automatically)
+  if(r.data && r.data.user){
+    await db.from('profiles').upsert({
+      id: r.data.user.id,
+      email: email,
+      full_name: name,
+      role: role
+    });
+  }
+
+  toast('Compte cree pour '+name);
+  closeEmpModal();
+  await loadAll();
+  renderTeam();
+}
+
+async function deleteEmp(){
+  if(!editEmpId || !confirm('Supprimer cet employe ? Ses plannings seront aussi supprimes.')) return;
+  // Delete events first
+  await db.from('events').delete().eq('employee_id', editEmpId);
+  // Delete team memberships
+  await db.from('team_members').delete().eq('profile_id', editEmpId);
+  // Delete profile
+  await db.from('profiles').delete().eq('id', editEmpId);
+  toast('Employe supprime');
+  closeEmpModal();
+  await loadAll();
+  renderTeam();
+}
+
+// ===================== END EMPLOYEES =====================
+
+// ===================== TEAMS =====================
+
+var editTeamId = null, tmColor = 0;
+
+async function loadTeams(){
+  var tr=await db.from('teams').select('*').order('name');
+  if(!tr.error) allTeams=tr.data||[];
+  var mr=await db.from('team_members').select('*');
+  if(!mr.error) allTeamMembers=mr.data||[];
+}
+
+function goView_teams(){
+  renderTeams();
+}
+
+function renderTeams(){
+  var el=document.getElementById('teams-list');
+  if(!allTeams.length){
+    el.innerHTML='<div class="empty" style="text-align:center;padding:2rem;color:var(--t3)">Aucune equipe. Creez-en une avec le bouton ci-dessus.</div>';
+    return;
+  }
+  var h='<div class="team-grid">';
+  allTeams.forEach(function(team){
+    var members=allTeamMembers.filter(function(m){ return m.team_id===team.id; });
+    var memberProfiles=members.map(function(m){
+      for(var i=0;i<allProfiles.length;i++){ if(allProfiles[i].id===m.profile_id) return allProfiles[i]; }
+      return null;
+    }).filter(Boolean);
+    var bg=BG[team.color||0], tx=TX[team.color||0];
+    h+='<div style="background:var(--surf);border:1px solid var(--b);border-radius:var(--rl);padding:.9rem;cursor:pointer" onclick="openTeamModal(&apos;'+team.id+'&apos;)">';
+    h+='<div style="display:flex;align-items:center;gap:.5rem;margin-bottom:.65rem">';
+    h+='<div style="width:12px;height:12px;border-radius:3px;background:'+bg+';flex-shrink:0"></div>';
+    h+='<span style="font-size:.85rem;font-weight:700">'+esc(team.name)+'</span>';
+    h+='<span style="margin-left:auto;font-size:.72rem;color:var(--t2)">'+memberProfiles.length+' membre(s)</span>';
+    h+='</div>';
+    if(memberProfiles.length){
+      h+='<div style="display:flex;flex-wrap:wrap;gap:.3rem">';
+      memberProfiles.forEach(function(p,i){
+        var ai=i%AVBG.length;
+        var init=(p.full_name||p.email||'?')[0].toUpperCase();
+        h+='<div style="display:flex;align-items:center;gap:.3rem;background:'+AVBG[ai]+';color:'+AVTX[ai]+';padding:2px 7px;border-radius:20px;font-size:.72rem;font-weight:500">';
+        h+=init+' '+esc((p.full_name||p.email||'?').split(' ')[0]);
+        h+='</div>';
+      });
+      h+='</div>';
+    } else {
+      h+='<div style="font-size:.75rem;color:var(--t3)">Aucun membre</div>';
+    }
+    h+='</div>';
+  });
+  el.innerHTML=h+'</div>';
+}
+
+function openTeamModal(id){
+  editTeamId=id||null;
+  var team=null;
+  if(id){ for(var i=0;i<allTeams.length;i++){ if(allTeams[i].id===id){ team=allTeams[i]; break; } } }
+  document.getElementById('tm-title').textContent=team?'Modifier equipe':'Nouvelle equipe';
+  document.getElementById('tm-name').value=team?team.name:'';
+  tmColor=team?(team.color||0):0;
+  document.getElementById('tm-del').style.display=team?'':'none';
+  buildTmColors();
+  // Build members checkboxes
+  var existingMembers=id?allTeamMembers.filter(function(m){ return m.team_id===id; }).map(function(m){ return m.profile_id; }):[];
+  var ml=document.getElementById('tm-members-list');
+  if(!allProfiles.length){
+    ml.innerHTML='<div style="font-size:.8rem;color:var(--t3)">Aucun employe trouve.</div>';
+  } else {
+    ml.innerHTML=allProfiles.map(function(p,i){
+      var ai=i%AVBG.length;
+      var checked=existingMembers.indexOf(p.id)>=0;
+      var init=(p.full_name||p.email||'?')[0].toUpperCase();
+      var chk=checked?'checked':'';
+      return '<label style="display:flex;align-items:center;gap:.6rem;padding:.4rem .5rem;border-radius:var(--r);cursor:pointer;border:1px solid var(--b)">'
+        +'<input type="checkbox" value="'+p.id+'" '+chk+' style="width:auto;margin:0;cursor:pointer"/>'
+        +'<div style="width:26px;height:26px;border-radius:50%;background:'+AVBG[ai]+';color:'+AVTX[ai]+';display:flex;align-items:center;justify-content:center;font-size:.72rem;font-weight:700;flex-shrink:0">'+init+'</div>'
+        +'<span style="font-size:.82rem;font-weight:500">'+esc(p.full_name||p.email)+'</span>'
+        +'<span style="font-size:.72rem;color:var(--t2);margin-left:auto">'+(p.role||'')+'</span>'
+        +'</label>';
+    }).join('');
+  }
+  document.getElementById('ov-team').style.display='flex';
+  setTimeout(function(){ document.getElementById('tm-name').focus(); },50);
+}
+
+function closeTeamModal(){ document.getElementById('ov-team').style.display='none'; editTeamId=null; }
+
+function buildTmColors(){
+  var h='';
+  for(var i=0;i<BG.length;i++){
+    h+='<div class="copt'+(i===tmColor?' on':'')+'" style="background:'+BG[i]+'" onclick="tmColor='+i+';buildTmColors()"></div>';
+  }
+  document.getElementById('tm-colors').innerHTML=h;
+}
+
+async function saveTeam(){
+  var name=document.getElementById('tm-name').value.trim();
+  if(!name){ document.getElementById('tm-name').style.boxShadow='0 0 0 2px var(--red)'; return; }
+  document.getElementById('tm-name').style.boxShadow='';
+
+  // Get selected members
+  var checked=[];
+  document.getElementById('tm-members-list').querySelectorAll('input[type=checkbox]:checked').forEach(function(cb){
+    checked.push(cb.value);
+  });
+
+  var teamId=editTeamId;
+  if(editTeamId){
+    var r=await db.from('teams').update({name:name,color:tmColor}).eq('id',editTeamId);
+    if(r.error){ toast('Erreur: '+r.error.message); return; }
+  } else {
+    var r=await db.from('teams').insert({name:name,color:tmColor,created_by:me.id}).select().single();
+    if(r.error){ toast('Erreur: '+r.error.message); return; }
+    teamId=r.data.id;
+  }
+
+  // Update members: delete all then re-insert
+  await db.from('team_members').delete().eq('team_id',teamId);
+  if(checked.length){
+    var rows=checked.map(function(pid){ return {team_id:teamId,profile_id:pid}; });
+    var mr=await db.from('team_members').insert(rows);
+    if(mr.error){ toast('Erreur membres: '+mr.error.message); return; }
+  }
+
+  toast(editTeamId?'Equipe modifiee':'Equipe creee');
+  closeTeamModal();
+  await loadTeams();
+  renderTeams();
+}
+
+async function deleteTeam(){
+  if(!editTeamId||!confirm('Supprimer cette equipe ?')) return;
+  await db.from('team_members').delete().eq('team_id',editTeamId);
+  await db.from('teams').delete().eq('id',editTeamId);
+  toast('Equipe supprimee');
+  closeTeamModal();
+  await loadTeams();
+  renderTeams();
+}
+
+// ===================== END TEAMS =====================
 
 db.auth.onAuthStateChange(function(evt,session){
   if(session&&session.user){ initApp(session.user); }
