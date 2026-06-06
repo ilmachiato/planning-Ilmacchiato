@@ -213,11 +213,11 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
   <div class="auth-box">
     <img id="lg1" src="" alt="Il Macchiato"/>
     <h1>Planning Il Macchiato</h1>
-    <p class="auth-sub">Entrez votre nom et mot de passe</p>
+    <p class="auth-sub">Entrez votre identifiant et mot de passe</p>
     <div class="err-box" id="auth-err"></div>
     <div class="fld">
-      <label>Prenom Nom</label>
-      <input id="inp-user" placeholder="Ex: Ahmed Marouan" autocomplete="name" autocapitalize="words"/>
+      <label>Email ou Identifiant</label>
+      <input id="inp-user" placeholder="votre@email.com ou Prenom Nom" autocomplete="email" type="text"/>
     </div>
     <div class="fld">
       <label>Mot de passe</label>
@@ -540,12 +540,20 @@ function showErr(m){ G('auth-err').textContent=m; G('auth-err').style.display='b
 async function doAuth(){
   var user=G('inp-user').value.trim(), pass=G('inp-pass').value;
   G('auth-err').style.display='none';
-  if(!user){ showErr('Entrez votre prenom et nom.'); return; }
+  if(!user){ showErr('Entrez votre identifiant.'); return; }
   if(!pass){ showErr('Entrez votre mot de passe.'); return; }
   G('auth-btn').textContent='...';
   try{
-    var r=await db.auth.signInWithPassword({email:nameToEmail(user),password:pass});
-    if(r.error){ showErr('Nom ou mot de passe incorrect.'); G('auth-btn').textContent='Se connecter'; }
+    // Try as-is first (real email like bassano2026@outlook.com)
+    var r=await db.auth.signInWithPassword({email:user,password:pass});
+    if(r.error){
+      // Try as internal name-based email
+      var r2=await db.auth.signInWithPassword({email:nameToEmail(user),password:pass});
+      if(r2.error){
+        showErr('Identifiant ou mot de passe incorrect.');
+        G('auth-btn').textContent='Se connecter';
+      }
+    }
   }catch(e){ showErr('Erreur serveur. Verifiez SB_URL et SB_KEY.'); G('auth-btn').textContent='Se connecter'; }
 }
 async function doLogout(){ await db.auth.signOut(); }
