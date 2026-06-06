@@ -266,6 +266,9 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
           <div id="btn-assign-wrap" style="margin-left:auto;display:none">
             <button class="btn acc sm" id="btn-assign" onclick="toggleAssign()">+ Assigner semaine</button>
           </div>
+          <div id="btn-request-wrap" style="display:none">
+            <button class="btn sm" style="border-color:var(--acc);color:var(--acc)" onclick="openRequestModal()">&#128197; Conge / Repos</button>
+          </div>
         </div>
         <div class="assign-panel" id="assign-panel" style="display:none">
           <div class="assign-panel-hd">
@@ -356,6 +359,31 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 </div>
 
 <!-- MODALS -->
+<!-- REQUEST MODAL (employee) -->
+<div class="ov" id="ov-request" style="display:none" onclick="if(event.target===this)closeRequestModal()">
+  <div class="modal" onclick="event.stopPropagation()">
+    <h2>Demander un conge / repos</h2>
+    <div style="background:var(--accl);color:var(--acc);border-radius:var(--r);padding:.5rem .72rem;font-size:.78rem;margin-bottom:.75rem">
+      Votre demande sera envoyee au manager pour validation.
+    </div>
+    <label>Type de demande</label>
+    <select id="req-type" style="margin-bottom:.75rem">
+      <option value="">-- Choisir --</option>
+    </select>
+    <label>Date de debut *</label>
+    <input id="req-date-start" type="date" style="margin-bottom:.75rem"/>
+    <label>Date de fin (si plusieurs jours)</label>
+    <input id="req-date-end" type="date" style="margin-bottom:.75rem"/>
+    <label>Motif (optionnel)</label>
+    <textarea id="req-note" placeholder="Precisez le motif si necessaire..."></textarea>
+    <div id="req-err" style="background:var(--redl);color:var(--red);border:1px solid rgba(255,107,107,.3);border-radius:var(--r);padding:.5rem .72rem;font-size:.8rem;margin-bottom:.75rem;display:none"></div>
+    <div class="mfoot">
+      <button class="btn sm" onclick="closeRequestModal()">Annuler</button>
+      <button class="btn acc sm" onclick="saveRequest()">Envoyer la demande</button>
+    </div>
+  </div>
+</div>
+
 <div class="ov" id="ov-assign-cell" style="display:none" onclick="if(event.target===this)closeAssignCell()">
   <div class="modal" onclick="event.stopPropagation()">
     <h2 id="ac-title">Assigner</h2>
@@ -536,6 +564,8 @@ async function initApp(user){
     ['bnav-pending','bnav-shifts','bnav-team'].forEach(function(id){ G(id).style.display=''; });
     G('btn-assign-wrap').style.display='';
     G('btn-add-emp').style.display='';
+  } else {
+    G('btn-request-wrap').style.display='';
   }
   await loadAll();
   if(isAdmin()&&allShifts.length===0) await seedShifts();
@@ -627,7 +657,7 @@ function renderPlanning(){
     for(var di=0;di<7;di++){
       var ds=dk(days[di]), isTod=ds===dk(NOW);
       var ev=evForDay(emp.id,ds), sh=ev?shiftById(ev.shift_id):null, isPend=ev&&ev.status==='pending';
-      tb+='<td class="day-td'+(isTod?' today-td':'')+'" onclick="cellClick(&apos;'+emp.id+'&apos;,&apos;'+ds+'&apos;)">';
+      tb+='<td class="day-td'+(isTod?' today-td':'')+(isAdmin()?'" onclick="cellClick(&apos;'+emp.id+'&apos;,&apos;'+ds+'&apos;)"':'" style="cursor:default"')+'>';
       if(sh){
         var bg=isPend?'var(--oral)':BG[sh.color||0], tx=isPend?'var(--ora)':TX[sh.color||0];
         var hrs=sh.time_start?sh.time_start.slice(0,5)+'-'+(sh.time_end||'').slice(0,5):'';
@@ -644,7 +674,7 @@ function renderPlanning(){
 }
 
 function cellClick(empId,ds){
-  if(!isAdmin()&&empId!==me.id) return;
+  if(!isAdmin()) return;
   cellCtx={empId:empId,ds:ds};
   var emp=null; for(var i=0;i<allProfiles.length;i++){ if(allProfiles[i].id===empId){ emp=allProfiles[i]; break; } }
   var d=new Date(ds+'T12:00');
@@ -910,7 +940,57 @@ function buildColors(elId,sel,varName){
   document.getElementById(elId).innerHTML=BG.map(function(bg,i){ return '<div class="copt'+(i===sel?' on':'')+'" style="background:'+bg+'" onclick="'+varName+'='+i+';buildColors(&apos;'+elId+'&apos;,'+i+',&apos;'+varName+'&apos;)"></div>'; }).join('');
 }
 
-document.addEventListener('keydown',function(e){ if(e.key==='Escape'){ [G('ov-assign-cell'),G('ov-shift'),G('ov-emp'),G('ov-team'),G('ov-shop')].forEach(function(el){ if(el) el.style.display='none'; }); closeAssign(); } });
+
+// EMPLOYEE REQUEST (conge/repos)
+function openRequestModal(){
+  // Populate type select with conge/repos shifts
+  var sel = G('req-type');
+  sel.innerHTML = '<option value="">-- Choisir --</option>';
+  allShifts.filter(function(s){ return s.name==='Conge'||s.name==='Repos'; }).forEach(function(s){
+    var o=document.createElement('option'); o.value=s.id; o.textContent=s.name; sel.appendChild(o);
+  });
+  // Also add all shifts so employee can request any
+  allShifts.filter(function(s){ return s.name!=='Conge'&&s.name!=='Repos'; }).forEach(function(s){
+    var o=document.createElement('option'); o.value=s.id; o.textContent=s.name; sel.appendChild(o);
+  });
+  G('req-date-start').value = '';
+  G('req-date-end').value = '';
+  G('req-note').value = '';
+  G('req-err').style.display = 'none';
+  G('ov-request').style.display = 'flex';
+}
+function closeRequestModal(){ G('ov-request').style.display='none'; }
+async function saveRequest(){
+  var shiftId = G('req-type').value;
+  var dateStart = G('req-date-start').value;
+  var dateEnd = G('req-date-end').value || dateStart;
+  var note = G('req-note').value.trim();
+  var errEl = G('req-err');
+  errEl.style.display = 'none';
+  if(!shiftId){ errEl.textContent='Choisissez un type de demande.'; errEl.style.display='block'; return; }
+  if(!dateStart){ errEl.textContent='Choisissez une date de debut.'; errEl.style.display='block'; return; }
+  // Generate all dates between start and end
+  var dates = [], cur = new Date(dateStart+'T12:00'), end = new Date(dateEnd+'T12:00');
+  while(cur<=end){ dates.push(dk(cur)); cur.setDate(cur.getDate()+1); }
+  var errors = [], count = 0;
+  for(var i=0;i<dates.length;i++){
+    var ds = dates[i];
+    var existing = evForDay(me.id, ds);
+    var r;
+    if(existing){
+      r = await db.from('events').update({shift_id:shiftId,status:'pending',note:note||null,updated_by:me.id}).eq('id',existing.id);
+    } else {
+      r = await db.from('events').insert({employee_id:me.id,date:ds,shift_id:shiftId,status:'pending',note:note||null,created_by:me.id});
+    }
+    if(r&&r.error){ errors.push(r.error.message); } else { count++; }
+  }
+  if(errors.length){ errEl.textContent='Erreur: '+errors[0]; errEl.style.display='block'; return; }
+  toast(count+' demande(s) envoyee(s) — en attente de validation');
+  closeRequestModal();
+  await loadAll(); renderPlanning(); refreshBadge();
+}
+
+document.addEventListener('keydown',function(e){ if(e.key==='Escape'){ [G('ov-assign-cell'),G('ov-shift'),G('ov-emp'),G('ov-team'),G('ov-shop'),G('ov-request')].forEach(function(el){ if(el) el.style.display='none'; }); closeAssign(); } });
 
 db.auth.onAuthStateChange(function(evt,session){
   if(session&&session.user){ initApp(session.user); }
